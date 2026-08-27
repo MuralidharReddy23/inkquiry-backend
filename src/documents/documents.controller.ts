@@ -10,15 +10,11 @@ import { DocumentsService } from './documents.service';
 
 @Controller('documents')
 export class DocumentsController {
-  constructor(
-    private readonly documentsService: DocumentsService,
-  ) {}
+  constructor(private readonly documentsService: DocumentsService) {}
 
   @Post('/upload')
   @UseInterceptors(FileInterceptor('file'))
-  uploadDocument(
-    @UploadedFile() file: Express.Multer.File,
-  ) {
+  uploadDocument(@UploadedFile() file: Express.Multer.File) {
     return this.documentsService.processDocument(file);
   }
 }
