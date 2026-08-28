@@ -10,32 +10,18 @@ import { EmbeddingsModule } from './embeddings/embeddings.module';
 import { RetrievalModule } from './retrieval/retrieval.module';
 import { RagModule } from './rag/rag.module';
 import { LlmModule } from './llm/llm.module';
+import { buildTypeOrmModuleOptions } from './database/typeorm.config';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
-      envFilePath: 'src/.env',
+      envFilePath: '.env',
       isGlobal: true,
     }),
 
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        type: 'postgres',
-
-        host: configService.get<string>('DB_HOST'),
-        port: Number(configService.get<string>('DB_PORT')),
-
-        username: configService.get<string>('DB_USERNAME'),
-        password: configService.get<string>('DB_PASSWORD'),
-        database: configService.get<string>('DB_NAME'),
-
-        autoLoadEntities: true,
-
-        // Fine for local development.
-        // We'll replace this with migrations later.
-        synchronize: true,
-      }),
+      useFactory: buildTypeOrmModuleOptions,
     }),
 
     DocumentsModule,
