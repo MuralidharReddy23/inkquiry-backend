@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Document } from '../../documents/entities/document.entity';
+import { EmbeddingsService } from '../../embeddings/embeddings.service';
 import { DocumentChunk } from './entities/document-chunk.entity';
 
 export interface PageContent {
@@ -20,6 +21,7 @@ export class ChunksService {
   constructor(
     @InjectRepository(DocumentChunk)
     private readonly chunkRepository: Repository<DocumentChunk>,
+    private readonly embeddingsService: EmbeddingsService,
   ) {}
 
   // Keep this low temporarily while testing.
@@ -115,14 +117,28 @@ export class ChunksService {
   }
 
   async saveChunks(chunks: ChunkContent[], document: Document): Promise<void> {
-    const entities = chunks.map((chunk) =>
-      this.chunkRepository.create({
-        document,
-        chunkIndex: chunk.chunkIndex,
-        pageNumber: chunk.pageNumber,
-        text: chunk.text,
-      }),
-    );
+    const entities: DocumentChunk[] = [];
+
+    for (const chunk of chunks) {
+      if (!chunk.text.trim()) continue;
+
+      const embedding = await this.embeddingsService.generateEmbedding(
+        chunk.text,
+        'DOCUMENT',
+      );
+
+      entities.push(
+        this.chunkRepository.create({
+          document,
+          chunkIndex: chunk.chunkIndex,
+          pageNumber: chunk.pageNumber,
+          text: chunk.text,
+          embedding,
+        }),
+      );
+    }
+
+    if (entities.length === 0) return;
 
     await this.chunkRepository.save(entities);
   }

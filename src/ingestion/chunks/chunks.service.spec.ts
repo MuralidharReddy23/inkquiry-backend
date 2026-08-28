@@ -1,6 +1,7 @@
 import { ChunksService } from './chunks.service';
 import { Document } from '../../documents/entities/document.entity';
 import { DocumentChunk } from './entities/document-chunk.entity';
+import { EmbeddingsService } from '../../embeddings/embeddings.service';
 
 describe('ChunksService', () => {
   let service: ChunksService;
@@ -8,12 +9,21 @@ describe('ChunksService', () => {
     create: jest.fn((chunk: Partial<DocumentChunk>) => chunk),
     save: jest.fn(),
   };
+  const embeddingsService = {
+    generateEmbedding: jest.fn(),
+  };
   const document = { id: 'document-id' } as Document;
 
   beforeEach(() => {
     jest.clearAllMocks();
     chunkRepository.save.mockResolvedValue([]);
-    service = new ChunksService(chunkRepository as never);
+    embeddingsService.generateEmbedding
+      .mockResolvedValueOnce([0.1, 0.2, 0.3])
+      .mockResolvedValueOnce([0.4, 0.5, 0.6]);
+    service = new ChunksService(
+      chunkRepository as never,
+      embeddingsService as unknown as EmbeddingsService,
+    );
   });
 
   it('should be defined', () => {
@@ -201,13 +211,35 @@ Second paragraph.`,
         chunkIndex: 0,
         pageNumber: 1,
         text: 'First chunk.',
+        embedding: [0.1, 0.2, 0.3],
       },
       {
         document,
         chunkIndex: 1,
         pageNumber: 2,
         text: 'Second chunk.',
+        embedding: [0.4, 0.5, 0.6],
       },
     ]);
+    expect(embeddingsService.generateEmbedding).toHaveBeenNthCalledWith(
+      1,
+      'First chunk.',
+      'DOCUMENT',
+    );
+    expect(embeddingsService.generateEmbedding).toHaveBeenNthCalledWith(
+      2,
+      'Second chunk.',
+      'DOCUMENT',
+    );
+  });
+
+  it('should not embed or save empty chunks', async () => {
+    await service.saveChunks(
+      [{ chunkIndex: 0, pageNumber: 1, text: '   ' }],
+      document,
+    );
+
+    expect(embeddingsService.generateEmbedding).not.toHaveBeenCalled();
+    expect(chunkRepository.save).not.toHaveBeenCalled();
   });
 });
